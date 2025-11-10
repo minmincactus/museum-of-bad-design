@@ -1,22 +1,29 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 
-const base =
-  "px-3 py-2 rounded-xl transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neutral-900";
-const active = ({ isActive }) =>
-  isActive
-    ? `${base} bg-neutral-900 text-white`
-    : `${base} text-neutral-800 hover:bg-neutral-200`;
+function hasConsent() {
+  try {
+    return !!JSON.parse(localStorage.getItem("museum-consent") || "null")?.consent;
+  } catch { return false; }
+}
 
 export default function Navbar() {
+  const nav = useNavigate();
+  const consent = hasConsent();
+
+  function safeNav(path) {
+    if (!consent) {
+      nav("/consent");
+    } else {
+      nav(path);
+    }
+  }
+
   return (
     <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur border-b">
-      <div className="mx-auto max-w-5xl px-4 h-14 flex items-center gap-3">
-        <NavLink to="/bad" className={active}>
-          Museum of Bad Design
-        </NavLink>
-        <NavLink to="/good" className={active}>
-          Restored Collection
-        </NavLink>
+      <div className="mx-auto max-w-5xl px-4 py-3 flex gap-4">
+        <button className="text-sm" onClick={() => safeNav("/bad")}>Bad Museum</button>
+        <button className="text-sm" onClick={() => safeNav("/good")}>Good Museum</button>
+        <button className="text-sm" onClick={() => nav("/tutorial")}>Tutorial</button>
       </div>
     </nav>
   );
