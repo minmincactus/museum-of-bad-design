@@ -11,12 +11,13 @@ export function BadCard({ item }) {
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && select()}
     >
       <div className="relative">
+        {/* use item.img, not item.image */}
         <img
-          src={item.image}
-          alt="" // intentionally empty
+          src={item.img}
+          alt="" /* intentionally empty for the bad version */
           className="h-56 w-full object-cover blur-sm brightness-75"
         />
-        <div className="absolute inset-0 bg-white/40"></div>
+        <div className="absolute inset-0 bg-white/40" />
       </div>
       <div className="p-4">
         <h3 className="text-lg font-semibold text-[#bdbdbd]">{item.title}</h3>
@@ -39,7 +40,8 @@ export function GoodCard({ item }) {
       tabIndex={0}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && select()}
     >
-      <img src={item.image} alt={item.alt} className="h-56 w-full object-cover" />
+      {/* use item.img, not item.image */}
+      <img src={item.img} alt={item.alt} className="h-56 w-full object-cover" />
       <div className="p-4">
         <h3 id={`title-${item.id}`} className="text-lg font-semibold text-neutral-900">
           {item.title}
