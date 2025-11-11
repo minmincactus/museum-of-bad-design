@@ -1,20 +1,22 @@
+// src/study/dataStore.js
 const KEY = "museum-study-v2";
 
 export function loadStudy() {
   try { return JSON.parse(localStorage.getItem(KEY)) || null; }
   catch { return null; }
 }
-
-export function saveStudy(data) {
-  localStorage.setItem(KEY, JSON.stringify(data));
-}
+export function saveStudy(data) { localStorage.setItem(KEY, JSON.stringify(data)); }
 
 export function newSession(meta = {}) {
   const session = {
-    meta: { participant: meta.participant || "" },
-    pre: {},          // keyed answers
-    tasks: [],        // {taskId, targetId, chosenId, correct, ms}
-    post: {},         // keyed answers
+    meta: {
+      participant: meta.participant || "",
+      orders: {},          // task index orders per condition
+      exhibitOrders: {}    // exhibit id orders per condition
+    },
+    pre: {},
+    tasks: [],             // {taskId, targetId, chosenId, correct, ms, cond}
+    post: {},
     createdAt: Date.now()
   };
   saveStudy(session);
@@ -26,34 +28,76 @@ export function setParticipant(name) {
   s.meta.participant = name || "";
   saveStudy(s);
 }
-
 export function recordPreAnswers(obj) {
   const s = loadStudy() || newSession();
   s.pre = { ...s.pre, ...obj };
   saveStudy(s);
 }
-
-export function recordTaskResult({ taskId, targetId, chosenId, ms }) {
+export function recordTaskResult({ taskId, targetId, chosenId, ms, condition }) {
   const s = loadStudy() || newSession();
   s.tasks.push({
     taskId, targetId, chosenId,
     correct: String(chosenId) === String(targetId),
-    ms
+    ms,
+    cond: condition || s.meta?.condition || ""
   });
   saveStudy(s);
 }
-
 export function recordPostAnswers(obj) {
   const s = loadStudy() || newSession();
   s.post = { ...s.post, ...obj };
   saveStudy(s);
 }
+export function clearSession() { localStorage.removeItem(KEY); }
 
-export function clearSession() {
-  localStorage.removeItem(KEY);
+/* ---------- Randomization helpers ---------- */
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
-// CSV: one row per task, includes all pre/post fields on each row for easy analysis
+/** Stable randomized task index order per condition */
+export function getOrCreateOrder(condition, taskCount) {
+  const s = loadStudy() || newSession();
+  if (!condition) return [...Array(taskCount).keys()];
+  if (!s.meta.orders) s.meta.orders = {};
+  const existing = s.meta.orders[condition];
+  if (!Array.isArray(existing) || existing.length !== taskCount) {
+    const order = shuffle([...Array(taskCount).keys()]);
+    s.meta.orders[condition] = order;
+    saveStudy(s);
+    return order;
+  }
+  return existing;
+}
+
+/** Stable randomized EXHIBIT-ID order per condition */
+export function getOrCreateExhibitOrder(condition, exhibitIds) {
+  const s = loadStudy() || newSession();
+  if (!condition) return [...exhibitIds]; // fallback
+
+  if (!s.meta.exhibitOrders) s.meta.exhibitOrders = {};
+  const existing = s.meta.exhibitOrders[condition];
+
+  // If missing or if the set of ids changed, (re)create
+  const sameSet =
+    Array.isArray(existing) &&
+    existing.length === exhibitIds.length &&
+    existing.every(id => exhibitIds.includes(id));
+
+  if (!sameSet) {
+    const order = shuffle([...exhibitIds]); // shuffle IDs themselves
+    s.meta.exhibitOrders[condition] = order;
+    saveStudy(s);
+    return order;
+  }
+  return existing;
+}
+
+/* ---------- CSV ---------- */
 export function exportCSV() {
   const s = loadStudy();
   if (!s) return "";
@@ -61,11 +105,8 @@ export function exportCSV() {
   const post = s.post || {};
   const cols = [
     "createdAt","participant",
-    // pre keys
     "pre_confidence","pre_familiarity","pre_importance","pre_ease","pre_empathy",
-    // task
-    "taskId","targetId","chosenId","correct","ms",
-    // post keys
+    "condition","taskId","targetId","chosenId","correct","ms",
     "post_confidence","post_importance","post_empathy","post_motivation","post_difficulty"
   ];
   const header = cols.join(",");
@@ -89,6 +130,7 @@ export function exportCSV() {
   for (const t of s.tasks) {
     const row = {
       ...base,
+      condition: t.cond || "",
       taskId: t.taskId,
       targetId: t.targetId,
       chosenId: t.chosenId ?? "",

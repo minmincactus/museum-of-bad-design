@@ -1,3 +1,4 @@
+// src/App.jsx
 import React from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
@@ -10,12 +11,11 @@ import StudyHUD from "./study/StudyHUD.jsx";
 export default function App() {
   const loc = useLocation();
 
-  // signals (optional; nice to have)
+  // optional nudges from Tutorial; not required for auto-start
   const stateStart = loc.state?.autoStart === true;
   const qsStart = new URLSearchParams(loc.search).get("start") === "1";
   const lsStart = localStorage.getItem("museum-start-now") === "1";
   const autoStart = stateStart || qsStart || lsStart;
-
   if (lsStart) localStorage.removeItem("museum-start-now");
 
   const onMuseumPage = loc.pathname === "/bad" || loc.pathname === "/good";
@@ -23,7 +23,6 @@ export default function App() {
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-900">
       <Navbar />
-      {/* Show HUD on museum pages; pass autoStart hint */}
       {onMuseumPage && <StudyHUD autoStart={autoStart} />}
 
       <Routes>

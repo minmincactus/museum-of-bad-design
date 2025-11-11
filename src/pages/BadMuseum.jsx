@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { BadCard } from "../components/ExhibitCard.jsx";
 import { EXHIBITS } from "../data.js";
+import { getOrCreateExhibitOrder } from "../study/dataStore.js";
 
 export default function BadMuseum() {
-  // Intentionally bad behaviors: remove focus outlines, autoplay audio
+  // accessibility-breaking extras
   useEffect(() => {
     const style = document.createElement("style");
     style.innerHTML = `*:focus{outline:none !important}`;
@@ -21,33 +22,28 @@ export default function BadMuseum() {
     };
   }, []);
 
+  // 🔀 stable random order for the “bad” condition
+  const randomizedExhibits = useMemo(() => {
+    const ids = EXHIBITS.map(e => e.id);
+    const order = getOrCreateExhibitOrder("bad", ids);
+    const map = new Map(EXHIBITS.map(e => [e.id, e]));
+    return order.map(id => map.get(id)).filter(Boolean);
+  }, []);
+
   return (
     <main>
-      {/* No skip link, no landmarks */}
       <section className="mx-auto max-w-5xl px-4 py-10">
-        <h1 className="text-3xl font-serif text-[#c9c9c9]">The Museum of Bad Design</h1>
-        <p className="mt-2 text-[#bdbdbd]">Minimalism so minimal you can barely read it.</p>
+        <h1 className="text-3xl font-serif text-[#c9c9c9]">
+          The Museum of Bad Design
+        </h1>
+        <p className="mt-2 text-[#bdbdbd]">
+          Minimalism so minimal you can barely read it.
+        </p>
 
-        {/* Unlabeled search */}
-        <div className="mt-6">
-          <input
-            className="w-60 border-b border-neutral-200 bg-transparent text-neutral-400 placeholder-neutral-300"
-            placeholder="search"
-          />
-        </div>
-
-        {/* Grid of inaccessible cards */}
         <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {EXHIBITS.map((e) => (
+          {randomizedExhibits.map(e => (
             <BadCard key={e.id} item={e} />
           ))}
-        </div>
-
-        {/* Vague link */}
-        <div className="mt-10">
-          <a href="#" className="text-neutral-300">
-            more
-          </a>
         </div>
       </section>
     </main>

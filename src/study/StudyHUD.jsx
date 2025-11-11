@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+// src/study/StudyHUD.jsx
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { TASKS } from "./tasks";
 import {
   newSession, loadStudy, setParticipant,
   recordPreAnswers, recordTaskResult,
-  recordPostAnswers, exportCSV, clearSession
+  recordPostAnswers, exportCSV, clearSession,
+  getOrCreateOrder
 } from "./dataStore";
 
 const PRE_QUESTIONS = [
@@ -24,35 +26,54 @@ const POST_QUESTIONS = [
 ];
 
 export default function StudyHUD({ autoStart = false }) {
-    const location = useLocation();
-    const [phase, setPhase] = useState("idle");
-    const [idx, setIdx] = useState(0);
-    const [timerStart, setTimerStart] = useState(null);
-    const [name, setName] = useState(loadStudy()?.meta?.participant || "");
-    const [lastMs, setLastMs] = useState(null);
-  
-    const currentTask = TASKS[idx];
-  
-    // 🔑 1) Start if came from tutorial (state/query/LS)
-    useEffect(() => {
-      if (autoStart && phase === "idle") {
-        newSession({ participant: name });
-        setPhase("pre");
-      }
-    }, [autoStart, phase, name]);
-  
-    // 🔑 2) Start automatically on /bad if there is no active session (works even on refresh)
-    useEffect(() => {
-      const onBad = location.pathname === "/bad";
-      const hasSession = !!loadStudy();
-      if (onBad && !hasSession && phase === "idle" && !autoStart) {
-        newSession({ participant: name });
-        setPhase("pre");
-      }
-    }, [location.pathname, phase, name, autoStart]);
+  const location = useLocation();
+  const navigate = useNavigate();
 
+  // derive experimental condition from route
+  const condition =
+    location.pathname === "/good" ? "good" :
+    location.pathname === "/bad"  ? "bad"  : null;
 
-  // Global hook for card clicks; stop timer and go to PAUSE (await Next)
+  // phases: idle → pre → task → pause → transition (after bad) → post → summary
+  const [phase, setPhase] = useState("idle");
+  const [idx, setIdx] = useState(0);
+  const [timerStart, setTimerStart] = useState(null);
+  const [name, setName] = useState(loadStudy()?.meta?.participant || "");
+  const [lastMs, setLastMs] = useState(null);
+
+  // stable per-condition randomized order, persisted in session
+  const order = useMemo(
+    () => getOrCreateOrder(condition, TASKS.length),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [condition]
+  );
+
+  // pick the current task via the randomized index
+  const currentTask = TASKS[order[idx]];
+
+  /** Start a clean session immediately */
+  function forceStart() {
+    try { clearSession(); } catch {}
+    newSession({ participant: name });
+    setIdx(0);
+    setPhase("pre");
+  }
+
+  // Start if Tutorial sent a hint
+  useEffect(() => {
+    if (autoStart && phase === "idle") forceStart();
+  }, [autoStart, phase]); // eslint-disable-line
+
+  // Also auto-start whenever you land on /bad (works on refresh)
+  useEffect(() => {
+    const onBad = location.pathname === "/bad";
+    const hasSession = !!loadStudy();
+    if (onBad && phase === "idle" && !hasSession && !autoStart) {
+      forceStart();
+    }
+  }, [location.pathname, phase, autoStart]); // eslint-disable-line
+
+  // Card clicks record result, stop timer, and pause until Next Task
   useEffect(() => {
     window.__selectExhibitForStudy = (exhibitId) => {
       if (phase !== "task") return;
@@ -62,12 +83,13 @@ export default function StudyHUD({ autoStart = false }) {
         taskId: currentTask.id,
         targetId: currentTask.targetId,
         chosenId: exhibitId,
-        ms
+        ms,
+        condition // record which museum page this task occurred on
       });
-      setPhase("pause"); // wait for Next
+      setPhase("pause");
     };
     return () => { delete window.__selectExhibitForStudy; };
-  }, [phase, currentTask, timerStart]);
+  }, [phase, currentTask, timerStart, condition]);
 
   function submitPre(answers) {
     recordPreAnswers(answers);
@@ -83,7 +105,14 @@ export default function StudyHUD({ autoStart = false }) {
       setTimerStart(Date.now());
       setPhase("task");
     } else {
-      setPhase("post");
+      // Finished all tasks for this route's condition
+      if (condition === "bad") {
+        // after bad museum, do NOT show post; push users to good museum
+        setPhase("transition");
+      } else {
+        // after good museum, now show post survey
+        setPhase("post");
+      }
     }
   }
 
@@ -108,13 +137,22 @@ export default function StudyHUD({ autoStart = false }) {
     setTimerStart(null);
     setLastMs(null);
     setName("");
+    navigate("/tutorial");
   }
 
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[999]">
       {phase === "idle" && (
         <Card title="Ready to Begin?" width="w-[26rem]">
-          <p className="text-sm text-neutral-600">Start from the Tutorial to begin the study flow.</p>
+          <p className="text-sm text-neutral-600 mb-3">
+            Start from the Tutorial—or just begin now.
+          </p>
+          <button
+            onClick={forceStart}
+            className="px-3 py-2 rounded-lg bg-neutral-900 text-white"
+          >
+            Start Study
+          </button>
         </Card>
       )}
 
@@ -137,10 +175,34 @@ export default function StudyHUD({ autoStart = false }) {
       {phase === "pause" && (
         <Card title="Recorded" width="w-[28rem]">
           <p className="text-sm text-neutral-700">
-            {lastMs != null ? `Time: ${(lastMs/1000).toFixed(2)}s` : "Answer recorded."}
+            {lastMs != null ? `Time: ${(lastMs / 1000).toFixed(2)}s` : "Answer recorded."}
           </p>
-          <button onClick={nextTask} className="mt-3 px-3 py-2 rounded-lg bg-neutral-900 text-white">
+          <button
+            onClick={nextTask}
+            className="mt-3 px-3 py-2 rounded-lg bg-neutral-900 text-white"
+          >
             Next Task
+          </button>
+        </Card>
+      )}
+
+      {/* Transition: Finished BAD museum → nudge to GOOD museum */}
+      {phase === "transition" && condition === "bad" && (
+        <Card title="Great! Now continue in the Good Museum" width="w-[32rem]">
+          <p className="text-sm text-neutral-700">
+            You’ve completed the tasks in the inaccessible (bad) version. Continue to the accessible version to finish the study.
+          </p>
+          <button
+            onClick={() => {
+              setIdx(0);
+              setLastMs(null);
+              setTimerStart(Date.now());
+              navigate("/good");
+              setPhase("task");
+            }}
+            className="mt-3 px-3 py-2 rounded-lg bg-neutral-900 text-white"
+          >
+            Go to Good Museum
           </button>
         </Card>
       )}
@@ -162,6 +224,7 @@ export default function StudyHUD({ autoStart = false }) {
   );
 }
 
+/* UI helpers */
 function Card({ title, children, width = "w-80" }) {
   return (
     <div className={`rounded-xl bg-white shadow-lg border p-4 ${width}`}>
@@ -208,30 +271,29 @@ function NameAndPre({ name, setName, questions, onSubmit }) {
 }
 
 function SurveyCard({ title, questions, onSubmit }) {
-    const [answers, setAnswers] = useState({});
-    function setVal(k, v) { setAnswers(a => ({ ...a, [k]: Number(v) })); }
-  
-    return (
-      <Card title={title} width="w-[34rem]">
-        <div className="space-y-3">
-          {questions.map(q => (
-            <div key={q.key}>
-              <div className="text-sm text-neutral-800 mb-1">{q.label}</div>
-              <Likert value={answers[q.key]} onChoose={(n) => setVal(q.key, n)} />
-            </div>
-          ))}
-        </div>
-        <button
-          className="mt-4 px-3 py-2 rounded-lg bg-neutral-900 text-white disabled:opacity-50"
-          onClick={() => onSubmit(answers)}
-          disabled={questions.some(q => answers[q.key] == null)}
-        >
-          Finish
-        </button>
-      </Card>
-    );
-  }
-  
+  const [answers, setAnswers] = useState({});
+  function setVal(k, v) { setAnswers(a => ({ ...a, [k]: Number(v) })); }
+
+  return (
+    <Card title={title} width="w-[34rem]">
+      <div className="space-y-3">
+        {questions.map(q => (
+          <div key={q.key}>
+            <div className="text-sm text-neutral-800 mb-1">{q.label}</div>
+            <Likert value={answers[q.key]} onChoose={(n) => setVal(q.key, n)} />
+          </div>
+        ))}
+      </div>
+      <button
+        className="mt-4 px-3 py-2 rounded-lg bg-neutral-900 text-white disabled:opacity-50"
+        onClick={() => onSubmit(answers)}
+        disabled={questions.some(q => answers[q.key] == null)}
+      >
+        Finish
+      </button>
+    </Card>
+  );
+}
 
 function Likert({ value, onChoose }) {
   return (
