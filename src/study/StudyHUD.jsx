@@ -241,10 +241,9 @@ function NameAndPre({ name, setName, questions, onSubmit }) {
   return (
     <Card title="Pre-survey" width="w-[34rem]">
       <div className="mb-3">
-        <label className="block text-sm text-neutral-700 mb-1">Participant name (optional)</label>
+        <label className="block text-sm text-neutral-700 mb-1">Participant name</label>
         <input
           className="w-full rounded-lg border px-3 py-2"
-          placeholder="e.g., Mindy Z."
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
