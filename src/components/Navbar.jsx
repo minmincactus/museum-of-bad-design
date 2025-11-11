@@ -21,8 +21,6 @@ export default function Navbar() {
   return (
     <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur border-b">
       <div className="mx-auto max-w-5xl px-4 py-3 flex gap-4">
-        <button className="text-sm" onClick={() => safeNav("/bad")}>Bad Museum</button>
-        <button className="text-sm" onClick={() => safeNav("/good")}>Good Museum</button>
         <button className="text-sm" onClick={() => nav("/tutorial")}>Tutorial</button>
       </div>
     </nav>

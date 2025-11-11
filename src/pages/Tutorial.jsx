@@ -13,7 +13,6 @@ export default function Tutorial() {
   return (
     <div
       className="min-h-screen w-full bg-cover bg-center flex items-center justify-center"
-      style={{ backgroundImage: `url(/museum.png)` }}
       role="img"
       aria-label="Museum hallway background"
     >
