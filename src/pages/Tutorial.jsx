@@ -13,8 +13,6 @@ export default function Tutorial() {
   return (
     <div
       className="min-h-screen w-full bg-cover bg-center flex items-center justify-center"
-      role="img"
-      aria-label="Museum hallway background"
     >
       <section className="bg-white/50 backdrop-blur-md border shadow-xl rounded-2xl max-w-2xl w-full p-6 m-4">
         <h1 className="text-3xl font-semibold">Tutorial: What You’ll Do</h1>
