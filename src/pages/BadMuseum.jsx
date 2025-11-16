@@ -31,8 +31,8 @@ export default function BadMuseum() {
 
   return (
     <main>
-      <section className="mx-auto max-w-5xl px-4 py-10 pt-20">
-        <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <section className="mx-auto max-w-6xl px-4 py-10 pt-20">
+        <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {randomized.map((e) => (
             <BadCard key={e.id} item={e} />
           ))}

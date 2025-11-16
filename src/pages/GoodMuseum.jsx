@@ -21,8 +21,8 @@ export default function GoodMuseum() {
       </a>
 
 
-      <section id="main" role="main" className="mx-auto max-w-5xl px-4 py-8 pt-20">
-        <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <section id="main" role="main" className="mx-auto max-w-6xl px-4 py-8 pt-20">
+        <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {randomized.map((e) => (
             <GoodCard key={e.id} item={e} />
           ))}

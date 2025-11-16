@@ -4,8 +4,11 @@ export const KEY = "museum-study-v2";
 
 /* ---------------- core session helpers ---------------- */
 export function loadStudy() {
-  try { return JSON.parse(localStorage.getItem(KEY)) || null; }
-  catch { return null; }
+  try {
+    return JSON.parse(localStorage.getItem(KEY)) || null;
+  } catch {
+    return null;
+  }
 }
 
 export function saveStudy(data) {
@@ -16,12 +19,13 @@ export function newSession(meta = {}) {
   const session = {
     meta: {
       participant: meta.participant || "",
-      orders: {},         // per-condition task index orders
-      exhibitOrders: {}   // per-condition exhibit id orders
+      computingId: meta.computingId || "",
+      orders: {},        // per-condition task index orders
+      exhibitOrders: {}  // per-condition exhibit id orders
     },
-    pre: {},              // keyed answers
-    tasks: [],            // {taskId, targetId, chosenId, correct, ms, cond}
-    post: {},             // keyed answers
+    pre: {},             // legacy (unused now)
+    tasks: [],           // {taskId, targetId, chosenId, correct, ms, cond}
+    post: {},            // legacy (unused now)
     createdAt: Date.now()
   };
   saveStudy(session);
@@ -34,9 +38,10 @@ export function setParticipant(name) {
   saveStudy(s);
 }
 
-export function recordPreAnswers(obj) {
+/* optional helper if you ever want to update computingId separately */
+export function setComputingId(id) {
   const s = loadStudy() || newSession();
-  s.pre = { ...s.pre, ...obj };
+  s.meta.computingId = id || "";
   saveStudy(s);
 }
 
@@ -50,12 +55,6 @@ export function recordTaskResult({ taskId, targetId, chosenId, ms, condition }) 
     ms,
     cond: condition || s.meta?.condition || ""
   });
-  saveStudy(s);
-}
-
-export function recordPostAnswers(obj) {
-  const s = loadStudy() || newSession();
-  s.post = { ...s.post, ...obj };
   saveStudy(s);
 }
 
@@ -99,7 +98,7 @@ export function getOrCreateExhibitOrder(condition, exhibitIds) {
   const sameSet =
     Array.isArray(existing) &&
     existing.length === exhibitIds.length &&
-    existing.every(id => exhibitIds.includes(id));
+    existing.every((id) => exhibitIds.includes(id));
 
   if (!sameSet) {
     const order = shuffle([...exhibitIds]);
@@ -113,31 +112,28 @@ export function getOrCreateExhibitOrder(condition, exhibitIds) {
 /* ---------------- CSV export ---------------- */
 export function exportCSV() {
   const s = loadStudy();
-  if (!s) return "";
-  const pre = s.pre || {};
-  const post = s.post || {};
+  if (!s || !s.tasks || s.tasks.length === 0) return "";
+
+  // final columns in the CSV
   const cols = [
-    "createdAt","participant",
-    "pre_confidence","pre_familiarity","pre_importance","pre_ease","pre_empathy",
-    "condition","taskId","targetId","chosenId","correct","ms",
-    "post_confidence","post_importance","post_empathy","post_motivation","post_difficulty"
+    "createdAt",
+    "participant",
+    "computingId",
+    "condition",
+    "taskId",
+    "targetId",
+    "chosenId",
+    "correct",
+    "ms"
   ];
+
   const header = cols.join(",");
   const rows = [header];
 
   const base = {
     createdAt: new Date(s.createdAt).toISOString(),
     participant: (s.meta?.participant || "").replaceAll(",", " "),
-    pre_confidence: pre.pre_confidence ?? "",
-    pre_familiarity: pre.pre_familiarity ?? "",
-    pre_importance: pre.pre_importance ?? "",
-    pre_ease: pre.pre_ease ?? "",
-    pre_empathy: pre.pre_empathy ?? "",
-    post_confidence: post.post_confidence ?? "",
-    post_importance: post.post_importance ?? "",
-    post_empathy: post.post_empathy ?? "",
-    post_motivation: post.post_motivation ?? "",
-    post_difficulty: post.post_difficulty ?? ""
+    computingId: (s.meta?.computingId || "").replaceAll(",", " ")
   };
 
   for (const t of s.tasks) {
@@ -150,7 +146,8 @@ export function exportCSV() {
       correct: t.correct ? 1 : 0,
       ms: t.ms ?? ""
     };
-    rows.push(cols.map(k => row[k]).join(","));
+    rows.push(cols.map((k) => row[k]).join(","));
   }
+
   return rows.join("\n");
 }
