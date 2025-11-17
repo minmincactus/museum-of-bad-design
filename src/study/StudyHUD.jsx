@@ -88,6 +88,22 @@ export default function StudyHUD({ autoStart = false }) {
     };
   }, [phase, currentTask, timerStart, condition]);
 
+  // 🔸 When the study finishes in the GOOD museum, deblur the images via data-attribute
+  useEffect(() => {
+    if (condition === "good") {
+      if (phase === "summary") {
+        document.body.dataset.museumDeblur = "1";
+      } else {
+        delete document.body.dataset.museumDeblur;
+      }
+    }
+
+    // cleanup on unmount / route change
+    return () => {
+      delete document.body.dataset.museumDeblur;
+    };
+  }, [condition, phase]);
+
   function nextTask() {
     if (idx < TASKS.length - 1) {
       setIdx(idx + 1);
@@ -149,59 +165,59 @@ export default function StudyHUD({ autoStart = false }) {
           </p>
         </Card>
       )}
-{phase === "pause" && (
-  <Card title="Recorded" width="w-[28rem]">
-    <p className="text-sm text-neutral-700">
-      {lastMs != null
-        ? `Time: ${(lastMs / 1000).toFixed(2)}s`
-        : "Answer recorded."}
-    </p>
 
-    <button
-      onClick={() => {
-        if (isLastTask && condition === "bad") {
-          // instead of going directly to good museum,
-          // show the transition screen
-          setPhase("transition");
-        } else {
-          nextTask();
-        }
-      }}
-      className="mt-3 px-3 py-2 rounded-lg bg-neutral-900 text-white"
-    >
-      Next Task
-    </button>
-  </Card>
-)}
+      {phase === "pause" && (
+        <Card title="Recorded" width="w-[28rem]">
+          <p className="text-sm text-neutral-700">
+            {lastMs != null
+              ? `Time: ${(lastMs / 1000).toFixed(2)}s`
+              : "Answer recorded."}
+          </p>
 
-{/* Transition screen AFTER finishing BAD museum */}
-{phase === "transition" && condition === "bad" && (
-  <Card title="Nice job! Now continue in the Good Museum" width="w-[32rem]">
-    <p className="text-sm text-neutral-700">
-      You’ve completed the tasks in the inaccessible (bad) version.
-      Continue to the accessible version to finish the study.
-    </p>
+          <button
+            onClick={() => {
+              if (isLastTask && condition === "bad") {
+                // after last BAD task: show transition instead of jumping
+                setPhase("transition");
+              } else {
+                nextTask();
+              }
+            }}
+            className="mt-3 px-3 py-2 rounded-lg bg-neutral-900 text-white"
+          >
+            Next Task
+          </button>
+        </Card>
+      )}
 
-    <button
-      onClick={() => {
-        setIdx(0);
-        setLastMs(null);
-        setTimerStart(Date.now());
-        navigate("/good");
-        setPhase("task");
-      }}
-      className="mt-3 px-3 py-2 rounded-lg bg-neutral-900 text-white"
-    >
-      Go to Good Museum
-    </button>
-  </Card>
-)}
+      {/* Transition screen AFTER finishing BAD museum */}
+      {phase === "transition" && condition === "bad" && (
+        <Card title="Nice job! Now continue in the Good Museum" width="w-[32rem]">
+          <p className="text-sm text-neutral-700">
+            You’ve completed the tasks in the inaccessible (bad) version.
+            Continue to the accessible version to finish the study.
+          </p>
 
+          <button
+            onClick={() => {
+              setIdx(0);
+              setLastMs(null);
+              setTimerStart(Date.now());
+              navigate("/good");
+              setPhase("task");
+            }}
+            className="mt-3 px-3 py-2 rounded-lg bg-neutral-900 text-white"
+          >
+            Go to Good Museum
+          </button>
+        </Card>
+      )}
 
       {phase === "summary" && (
         <Card title="Session Complete" width="w-[28rem]">
           <p className="text-sm text-neutral-700">
-            Export results as CSV or start a new session.
+            Export results as CSV or start a new session.  
+            The Good Museum images below are now shown clearly for reference.
           </p>
           <div className="mt-3 flex gap-2">
             <button

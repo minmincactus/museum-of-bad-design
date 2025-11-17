@@ -34,20 +34,18 @@ function logListen(itemId, variant) {
   }
 }
 
-/** ---------------- Bad card (intentionally inaccessible) ---------------- */
+/* ----------------------------------------------------------
+   BAD CARD — reads badAlt, always blurry + empty alt
+----------------------------------------------------------- */
 export function BadCard({ item }) {
   function select() {
     if (window.__selectExhibitForStudy) window.__selectExhibitForStudy(item.id);
   }
 
-  // Message to simulate poor/missing alt text
-  // You can also set item.badAlt on specific items in data.js
-  const badMessage = item.badAlt ?? "…No description available.";
-
   function onListen(e) {
-    e.stopPropagation(); // don't trigger select
-    // Option A (frustrating): speak vague/empty text
-    speak(badMessage, { rate: 1, pitch: 1 });
+    e.stopPropagation();
+    const text = item.badAlt || "No description available.";
+    speak(text, { rate: 1, pitch: 1 });
     logListen(item.id, "bad");
   }
 
@@ -59,48 +57,53 @@ export function BadCard({ item }) {
   return (
     <div
       className="
-        rounded-2xl border border-neutral-300 bg-white/60 shadow-sm overflow-hidden cursor-pointer
-        transition-all
-        hover:ring-2 hover:ring-neutral-400
-        focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-2 focus:ring-offset-white
+        rounded-2xl border border-neutral-200 bg-white shadow-md overflow-hidden cursor-pointer
+        transition
+        hover:border-neutral-900 hover:shadow-lg
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900
+        focus-visible:ring-offset-2 focus-visible:ring-offset-white
       "
       onClick={select}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && select()}
-      aria-label="Exhibit card"
+      aria-label={`Exhibit card (bad version): ${item.title}`}
     >
-      <div className="relative overflow-hidden">
+      <div className="h-56 w-full overflow-hidden">
         <img
           src={item.img}
-          alt="" /* 🚫 intentionally missing alt text */
-          className="h-56 w-full object-cover blur-md brightness-50"
+          alt=""  /* bad museum: no useful alt text */
+          className="h-full w-full object-cover blur-lg select-none brightness-50 contrast-50 "
+          draggable={false}
+          onDragStart={(e) => e.preventDefault()}
         />
-        <div className="absolute inset-0 bg-white/40" />
       </div>
 
-      {/* Control strip (visually present, but still not great semantics) */}
-      <div className="flex items-center gap-2 p-3 text-sm">
-        <button
-          onClick={onListen}
-          className="px-2 py-1 rounded-md border bg-white hover:bg-neutral-50 active:scale-[0.99]"
-          aria-label="Listen to description (inaccessible)"
-        >
-          🔊 Listen
-        </button>
-        <button
-          onClick={onStop}
-          className="px-2 py-1 rounded-md border bg-white hover:bg-neutral-50"
-          aria-label="Stop audio"
-        >
-          🛑 Stop
-        </button>
+      <div className="p-4">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onListen}
+            className="px-2 py-1 rounded-md border bg-white hover:bg-neutral-50 active:scale-[0.99]"
+            aria-label={`Listen to bad description: ${item.title}`}
+          >
+            🔊 Listen
+          </button>
+          <button
+            onClick={onStop}
+            className="px-2 py-1 rounded-md border bg-white hover:bg-neutral-50"
+            aria-label="Stop audio"
+          >
+            🛑 Stop
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-/** ---------------- Good card (accessible) ---------------- */
+/* ----------------------------------------------------------
+   GOOD CARD — reads alt, blur removed when study is done
+----------------------------------------------------------- */
 export function GoodCard({ item }) {
   function select() {
     if (window.__selectExhibitForStudy) window.__selectExhibitForStudy(item.id);
@@ -111,12 +114,7 @@ export function GoodCard({ item }) {
 
   function onListen(e) {
     e.stopPropagation();
-    if (!item.alt) {
-      speak("No description available.");
-      logListen(item.id, "good-missing");
-      return;
-    }
-    speak(item.alt);
+    speak(item.alt || "No description available.");
     speakingRef.current = true;
     setSpeaking(true);
     logListen(item.id, "good");
@@ -133,9 +131,10 @@ export function GoodCard({ item }) {
     <article
       className="
         rounded-2xl border border-neutral-200 bg-white shadow-md overflow-hidden cursor-pointer
-        transition-all
-        hover:ring-4 hover:ring-neutral-900
-        focus:outline-none focus:ring-4 focus:ring-neutral-900 focus:ring-offset-2 focus:ring-offset-white
+        transition
+        hover:border-neutral-900 hover:shadow-lg
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900
+        focus-visible:ring-offset-2 focus-visible:ring-offset-white
       "
       aria-labelledby={`title-${item.id}`}
       onClick={select}
@@ -143,14 +142,16 @@ export function GoodCard({ item }) {
       tabIndex={0}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && select()}
     >
-      {/* ✅ Proper alt text for screen readers */}
-      <img
-        src={item.img}
-        alt={item.alt}
-        className="h-56 w-full object-cover"
-      />
+      <div className="h-56 w-full overflow-hidden">
+        <img
+          src={item.img}
+          alt={item.alt}
+          className="h-full w-full object-cover blur-lg good-exhibit-img select-none brightness-50 contrast-50"
+          draggable={false}
+          onDragStart={(e) => e.preventDefault()}
+        />
+      </div>
 
-      {/* Visually minimal, still accessible content */}
       <div className="p-4">
         <div className="flex items-center gap-2">
           <button
@@ -168,9 +169,6 @@ export function GoodCard({ item }) {
             🛑 Stop
           </button>
         </div>
-
-        {/* Keep description accessible; you can visually hide if you prefer */}
-        <p className="sr-only">{item.desc}</p>
       </div>
     </article>
   );

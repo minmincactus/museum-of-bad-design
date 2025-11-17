@@ -84,7 +84,7 @@ export const EXHIBITS = [
     id: 12,
     title: "Cat in Space",
     img: withBase("space.jpg"),
-    badAlt: "dark background",
+    badAlt: "dark",
     alt: "A painted cat with a fiery trail behind it, surrounded by blue and black outer space."
   }
 ];

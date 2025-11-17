@@ -21,7 +21,7 @@ export const TASKS = [
   },
   {
     id: "t5",
-    prompt: "Find the painting with a party hat.",
+    prompt: "Find the painting with a birthday hat.",
     targetId: 1
   }
 ];

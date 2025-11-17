@@ -6,3 +6,9 @@
 html, body, #root {
   height: 100%;
 }
+
+/* When the GOOD museum study is complete (phase = summary),
+   remove the blur from good exhibit images */
+   body[data-museum-deblur="1"] img.good-exhibit-img {
+    filter: none !important;
+  }
